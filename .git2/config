@@ -1,0 +1,16 @@
+[core]
+	repositoryformatversion = 0
+	filemode = false
+	bare = false
+	logallrefupdates = true
+	symlinks = false
+	ignorecase = true
+[remote "arqcom"]
+	url = https://github.com/luisfromero/arqcom.git
+	fetch = +refs/heads/*:refs/remotes/arqcom/*
+[remote "arqcom1"]
+	url = git@github.com:luisfromero/arqcom1.git
+	fetch = +refs/heads/*:refs/remotes/arqcom1/*
+[remote "origin"]
+	url = git@luisfromero:LFrg-2252@arqcom.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
