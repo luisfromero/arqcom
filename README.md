@@ -30,6 +30,8 @@ Esto nos lleva a las tres secciones principales de un proyecto de Git: el direct
 
 ### Introducción a Markdown
 
+1 Introducción
+
 Ya aprendimos algo de Markdown en la asignatura FuComp, como parte de los notebooks de Jupyter:
 
 Esta celda es **Markdown**, y por tanto, es ignorada por el *kernel*
@@ -42,7 +44,20 @@ Por ejemplo, [este tutorial](https://github.com/luong-komorebi/Markdown-Tutorial
 
 [Y este otro entorno (colab)](https://colab.research.google.com/) te permite utilizar los notebooks sin instalar nada
 
-<br>
+
+[Finalmente, tenemos aquí un chuletario](http://github.com/downloads/ahrencode/Miscellaneous/markdown-cheatsheet.pdf)
+
+2 Estilos
+
+_Prueba esto en whatsapp_
+
+~~Prueba esto en whatsapp~~
+
+**Prueba esto en whatsapp**
+
+```c++ 
+main(); \\ Prueba esto en whatsapp
+```
 <br>
 
 
