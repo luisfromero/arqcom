@@ -1,6 +1,6 @@
 Objetivo: compilar una función simple con distintos tipos de variables:
 
-``` 
+```c
 extern int x;     
 // La dirección del área global se guarda en r28
 // El símbolo es el desplazamiento
@@ -28,7 +28,7 @@ Observe:
 
 ```cat func.s```
 
-```
+```assembly
         lui     $28,%hi(__gnu_local_gp)
         addiu   $28,$28,%lo(__gnu_local_gp)
         lui     $2,%hi(a)
@@ -44,7 +44,7 @@ El archivo ensamblador intermedio func.s usa directivas como got(), que utiliza 
 
 ```mips-linux-gnu-objdump --syms -D func.o```
 
-```
+```assembly
    0:   3c1c0000        lui     gp,0x0
    4:   279c0000        addiu   gp,gp,0
    8:   3c020000        lui     v0,0x0
