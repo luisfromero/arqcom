@@ -16,6 +16,7 @@ int funcion()
 
 
 Observe:
+
 * Cómo la dirección de las variables globales se guarda en $28
 * Cómo el contenido de la variable local a es recuperada en las líneas 3 y 4
 * Cómo se hace la primera suma a+23
@@ -23,9 +24,11 @@ Observe:
 * Cómo las variables globales siempre son indirecciones
 * Y cómo se usa el salto retardado
 
-mips-linux-gnu-gcc -O1 -c --save-temps func.c
-cat func.s
+```mips-linux-gnu-gcc -O1 -c --save-temps func.c```
 
+```cat func.s```
+
+```
         lui     $28,%hi(__gnu_local_gp)
         addiu   $28,$28,%lo(__gnu_local_gp)
         lui     $2,%hi(a)
@@ -35,11 +38,13 @@ cat func.s
         lw      $3,0($3)
         jr      $31
         addu    $2,$2,$3
+```
 
-El archivo intermedio usa directivas como got(), que utiliza para generar el binario, mientras  que el desensamblado muestra el resultado crudo:
+El archivo ensamblador intermedio func.s usa directivas como got(), que utiliza para generar el binario, mientras  que el desensamblado muestra el resultado crudo:
 
-mips-linux-gnu-objdump --syms -D func.o
+```mips-linux-gnu-objdump --syms -D func.o```
 
+```
    0:   3c1c0000        lui     gp,0x0
    4:   279c0000        addiu   gp,gp,0
    8:   3c020000        lui     v0,0x0
@@ -49,4 +54,4 @@ mips-linux-gnu-objdump --syms -D func.o
   18:   8c630000        lw      v1,0(v1)
   1c:   03e00008        jr      ra
   20:   00431021        addu    v0,v0,v1
-
+```
