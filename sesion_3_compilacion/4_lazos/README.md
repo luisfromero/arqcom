@@ -1,0 +1,4 @@
+ mips-linux-gnu-gcc -S -O0 main.c
+ mips-linux-gnu-gcc  -S -O5 -funroll-loops  --param max-unroll-times=4 main.c
+ mips-linux-gnu-gcc -save-temps -c -O5 -funroll-loops  --param max-unroll-times=4 main.c
+ 
