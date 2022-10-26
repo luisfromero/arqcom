@@ -101,6 +101,10 @@ Como la variable $2 almacenaba la dirección de a, y el registro $16 es la varia
         addu    $2,$16,$2
 ```
 
+¿Porqué utiliza la suma de números sin signo? En este [sitio](https://stackoverflow.com/questions/16634110) aparece una explicación: 
+
+_The instruction names are misleading. Use addu for both signed and unsigned operands, if you do not want a trap on overflow. Use add if you need a trap on overflow for some reason. Most languages do not want a trap on signed overflow, so add is rarely useful._
+
 ## 5 Valor de retorno de la función
 
 En mips, las funciones de tipo entero utilizan el registro $2 para devolver el valor entero de la función, por lo que no es necesario hacer nada más.
