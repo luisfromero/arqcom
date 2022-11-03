@@ -70,13 +70,14 @@ Para compilar, utilice el comando:
 gcc -o mainX.exe mainX.c -pthread
 ```
 
-## Descripción de los códigos agregados
-1 [main1.c](main1.c): Creación de dos hilos.
-2 [main2.c](main2.c): Creación de dos hilos y uso de memoria para intercambio.
-3 [main3.c](main3.c): Dependencia verdadera y sincronización con semáforos.
-4 [main4.c](main4.c): Sincronización sin bloqueos (try wait).
-5 [main5.c](main5.c): El problemas RAW/WAR en un lazo.
-6 [main6.c](main6.c): El problemas RAW/WAR en un lazo.
-7 [main7.c](main7.c): Sincronización con mutex.
-8 [main8.c](main8.c): Barreras con mutex.
-9 [main9.c](main9.c): Comparación de rendimientos entre semáforos y mutex.
+## Breve descripción de los códigos agregados
+
+1. [main1.c](main1.c): Creación de dos hilos.
+2. [main2.c](main2.c): Creación de dos hilos y uso de memoria para intercambio.
+3. [main3.c](main3.c): Dependencia verdadera y sincronización con semáforos.
+4. [main4.c](main4.c): Sincronización sin bloqueos (try wait).
+5. [main5.c](main5.c): El problemas RAW/WAR en un lazo.
+6. [main6.c](main6.c): El problemas RAW/WAR en un lazo.
+7. [main7.c](main7.c): Sincronización con mutex.
+8. [main8.c](main8.c): Barreras con mutex.
+9. [main9.c](main9.c): Comparación de rendimientos entre semáforos y mutex.
