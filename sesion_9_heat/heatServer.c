@@ -39,63 +39,8 @@ double cpu_time ( void )
 }
 
 
-//Establece una condicion de contorno Dirichlet
-//          Frio
-//Calor              Calor
-//          Calor
-int iniheat()
-{
-    int i,j;
-    double mean;
-      for ( i = 1; i < SIZEY - 1; i++ )
-  {
-    w[i][0] = 100.0;
-  }
-  for ( i = 1; i < SIZEY - 1; i++ )
-  {
-    w[i][SIZEX-1] = 100.0;
-  }
-  for ( j = 0; j < SIZEX; j++ )
-  {
-    w[SIZEY-1][j] = 100.0;
-  }
-  for ( j = 0; j < SIZEX; j++ )
-  {
-    w[0][j] = 0.0;
-  }
-/*
-   Calcula un valor interpolado en la zona interior
-*/
-  mean = 0.0;
-  for ( i = 1; i < SIZEY - 1; i++ )
-  {
-    mean = mean + w[i][0];
-  }
-  for ( i = 1; i < SIZEY - 1; i++ )
-  {
-    mean = mean + w[i][SIZEX-1];
-  }
-  for ( j = 0; j < SIZEX; j++ )
-  {
-    mean = mean + w[SIZEY-1][j];
-  }
-  for ( j = 0; j < SIZEX; j++ )
-  {
-    mean = mean + w[0][j];
-  }
-  mean = mean / ( double ) ( 2 * SIZEY + 2 * SIZEX - 4 );
-/* 
-  Initialize the interior solution to the mean value.
-*/
-  for ( i = 1; i < SIZEY - 1; i++ )
-  {
-    for ( j = 1; j < SIZEX - 1; j++ )
-    {
-      w[i][j] = mean;
-    }
-  }
- 
-}
+
+
 
 
 
@@ -111,7 +56,7 @@ do{
      n = read(new_sock_id,mess,100);
 printf("\nEl thread ha recibido  %d bytes (%s)\n",n,mess);
      if (n < 0) perror("ERROR leyendo del socket");
-                        if(n>6)if(mess[0]=='$'){
+                        if(n>9)if(mess[0]=='$'){
                             sscanf(mess,"$%03d%03d%03d",&coordX,&coordY,&tempe);
                             w[coordY][coordX]=tempe;
                             //El cliente cambia la temperatura de un determinado punto
