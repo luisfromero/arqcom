@@ -200,3 +200,33 @@ double u[SIZEY][SIZEX];
 }
 
 
+
+int main(int argc, char** argv) {
+    int puerto;
+    pthread_t mithread; /* thread and attributes */
+    int sock_id, new_sock_id;
+    if (argc < 2) {
+        printf("Modo de empleo: servidor port\n");
+        exit(0);
+    }
+    puerto = atoi(argv[1]);
+    printf("Abriendo puerto %d en espera de un cliente...\n", puerto);
+    new_sock_id = open_socket(atoi(argv[1]), sock_id);
+    printf("Slave conectado.........\n");
+    pthread_create(&mithread, NULL, funcion_hilo, (void *) (new_sock_id));
+    printf("Thread iniciado \n");
+    iniheat();
+    do {
+        if (mess[0] == 0)printf(".");
+        else printf(" %s\n", mess);
+        fflush(0);
+        heat();
+        copyimage();
+        write(new_sock_id, image, SIZE);
+        sleep(1);
+    } while (strcmp(mess, "end"));
+    printf("Esperando el fin del thread...\n");
+    pthread_join(mithread, NULL);
+    close(sock_id);
+    return (EXIT_SUCCESS);
+}
