@@ -19,5 +19,5 @@ Ambos ejercicios eliminan con un 50%
 
 Las prácticas planteadas para Navidad son obligatorias, y eliminan con una calificación del 50%
 
-La práctica de Android se evalúa fundamentalmente con la participación en clase. Habitualmente se alcanza hasta un 90%, aunque se puede llegar al 100% con un sencillo trabajo adicional
+La práctica de Android se evalúa con la participación en clase. Habitualmente se alcanza hasta un 90%, aunque se puede llegar al 100% con un trabajo adicional.
 
