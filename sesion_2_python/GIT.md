@@ -32,14 +32,40 @@ No es más que un almacén remoto de repositorios, de los muchos que hay. Es pos
 * git pull (descarga los archivos)
 
 
+### Cómo empezar a trabajar con GIT?
+
+
+Recomiendo encarecidamente que, para iniciarse con Git, se modifiquen exclusivamente las copias locales (en tu ordenador) del repositorio. Para ello:
+
+* Instala git para Windows/Linux, ...
+* Crea, o elige un directorio del proyecto de tu ordenador
+* Crea un archivo README.md (ejecutando la primera línea del código siguiente, en una ventana de comandos, en el directorio del proyecto)
+* Crea el repositorio local (.git) en tu directorio del proyecto, usando eel comando **git init**
+* Indica que todos los archivos de esa carpeta forman parte del repositorio, con **git add .**
+* Opcionalmente, pero recomendado (si deseas usar Github), crea un repositorio remoto **vacío, sin readme**, en tu cuenta de github, con un nombre, p.e. ac1
+* Crear el primer commit de tu repositorio, y una rama para dicho commit
+* Vincula el repositorio de github con el repositorio local: *git remote add origin https://github.com/luisfromero/ac1.git**
+* Envía la rama main al repositorio remoto
 
 
 ```
-echo "# Proyecto AA" >> README.md
+echo "# Proyecto AC1" > README.md
 git init
 git add .
 git commit -m "commit inicial"
 git branch -M main
-git remote add origin https://github.com/luisfromero/aa.git
+git remote add origin https://github.com/luisfromero/ac1.git
 git push -u origin main
 ```
+
+A partir de ahora, ya es conveniente utilizar algún entorno que tenga Git integrado para trabajar con tu proyecto (CLion,VSCode,AndroidStudio,VisualStudio, etc.)
+
+Por ejemplo, VSCode, los pasos serían...
+
+* Editar uno o varios archivos (por ejemplo, README.md). Guardarlo con ctrl-S (El archivo está en estado 1: modificado)
+* En la pestaña izuierda, de source control, README aparece en la lista de changes. Pulsa el + justo al nombre del archivo README
+* Ahora el archivo está en el estado 2 (preparado, staged)
+* Haz lo mismo con otros archivos, si quieres.
+* Cuando creas que quieres consolidar (commit), ponle un texto al mensaje de consolidación, ej. "Ampliación del manualillo de git", y pulsa commit.
+
+Opcionalmente, sincroniza el repositorio remoto, tras cada commit. O cada dos o tres commits, si no hay nadie esperando tus cambios.
