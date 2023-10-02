@@ -34,9 +34,6 @@ No es más que un almacén remoto de repositorios, de los muchos que hay. Es pos
 
 
 
-
-
-
 ```
 echo "# Proyecto AA" >> README.md
 git init
