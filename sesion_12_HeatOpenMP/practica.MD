@@ -8,6 +8,16 @@ Se pide un código simple en c o c++ en el que se intente la ejecución en vario
 
 * 8 puntos
 
-En el código fuente principal heatOpenMp.cpp dentro del archivo [heatClientServerOpenMp2023.zip](heatClientServerOpenMp2023.zip) se ha paralelizado (en el servidor) la parte más costosa del código (la que consume más tiempo de CPU). Sin embargo, el código contiene errores, además de unas barreras que hacen que pierda más tiempo del necesario. Se pide, en primer lugar, implementar una medida de rendimiento (ciclos/segundo, mflops, etc...), para a continuación eliminar las barreras y sustituirlas por otros mecanismos que permitan que el código se ejecute de forma correcta, o al menos, visualmente correcta, pero de forma más eficiente.
+En el código fuente principal heatOpenMp.cpp dentro del archivo [heatClientServerOpenMp2023.zip](heatClientServerOpenMp2023.zip) se ha paralelizado (en el servidor) la parte más costosa del código (la que consume más tiempo de CPU). Sin embargo, el código no es muy eficiente. 
 
-**_Nota:_** *Las fronteras entre los dominios de la solución de cada thread son la parte más crítica de la resolución paralela. Sin las barreras, uno de los threads puede ir varios pasos de tiempo por delante de los demás, lo que provoca que afecta a los valores de temperatura en las fronteras y que la ejecución resulte incorrecta. La alternativa a la barrera es que los threads sólo se sincronicen con sus vecinos.
+Si se ponen barreras, la simulación es lenta debido a que hay un thread que, además de hacer cálculos, se encarga de hacer 
+la entrada salida. Y si no se ponen, entonces hay una región más
+lenta que otra. 
+
+Se pide, en este ejercicio, aislar el envío de datos de los cálculos (se enviaría asíncronamente el estado de la placa).
+
+Puede hacerse con un thread posix (thread_emisor), aunque otra
+posibilidad sería utilizar openmp anidado:
+
+* En el primer nivel, tres threads (uno recibe, otro envía y el tercero calcula)
+* El thread que calcula se paralelizaría en un segundo nivel, creando tantos threads como se quiera
