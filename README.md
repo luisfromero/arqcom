@@ -1,6 +1,6 @@
 ## Arquitectura de computadores. Escuela de Industriales.
 
-El propósito de este repositorio es, principalmente, el almacenamiento de códigos utilizados en las prácticas, de forma que exista una mayor flexibilidad que la que ofrece el [Campus Virtual](https://eii.cv.uma.es/course/view.php?id=3713) en lo que respecta a las copias, ramificaciones, etc.
+El propósito de este repositorio es, principalmente, el almacenamiento de códigos utilizados en las prácticas, de forma que exista una mayor flexibilidad que la que ofrece el [Campus Virtual](https://eii.cv.uma.es/course/view.php?id=3713) en lo que respecta a las copias, ramificaciones, etc...
 
 ### Prerrequisitos
 
