@@ -12,7 +12,35 @@ El propósito de este repositorio es, principalmente, el almacenamiento de códi
 
 <br>
 <br>
+## Introducción a Git
 
+
+### ¿Qué es Git?
+
+Git es un sistema de control de versiones distribuido, diseñado para manejar todo tipo de proyectos, grandes o pequeños, con rapidez y eficiencia. Fue creado por Linus Torvalds en 2005, principalmente para el desarrollo del kernel de Linux, pero hoy en día es utilizado por miles de proyectos en todo el mundo.
+
+### ¿Por qué usar Git?
+
+Git es útil porque permite a los equipos de desarrollo trabajar en conjunto en el mismo código, manteniendo un registro detallado de los cambios realizados y facilitando la integración de diferentes contribuciones sin conflictos. Algunas de sus características principales son:
+
+- **Rápido y eficiente**: Git es conocido por su velocidad, especialmente en grandes proyectos.
+- **Distribuido**: A diferencia de otros sistemas, Git permite que cada desarrollador tenga una copia completa del historial del proyecto.
+- **Control de versiones**: Git guarda un historial completo de cambios, lo que facilita revertir errores o entender cómo se desarrolló el proyecto.
+  
+### Instalación de Git
+
+Si aún no tienes Git instalado en tu sistema, puedes instalarlo siguiendo estos pasos:
+
+- **Windows**: Descarga el instalador desde [git-scm.com](https://git-scm.com/download/win) y sigue el asistente de instalación.
+- **macOS**: Usa Homebrew para instalar Git con el siguiente comando:
+
+  ```bash
+  brew install git
+
+- **Linux**: Usa el gestor de paquetes de tu distribución. Por ejemplo, en Ubuntu o Debian
+
+
+                    
 
 ### Introducción a Markdown
 
