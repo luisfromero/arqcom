@@ -8,6 +8,13 @@
 
 char mess[100];
 
+/**
+ * Función que se conecta a a un socket
+ * @param int puerto Puerto al que se conecta
+ * @param char* host Máquina a la que se conecta
+ * @author Yo
+ * @returns int Si se ha conectado o no
+*/
 int open_socket_client(int puerto, char *host)
 {
 int fd;

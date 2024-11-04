@@ -33,6 +33,16 @@ int  open_socket(int puerto, int id){
 	return newsockfd;
 	}
 
+/**
+ * Esta función es un hilo que entra en un bucle infinito
+ * En cada iteración duerme un segundo 
+ * Despues pone a cero un array de 100 bytes (mess)
+ * Mira en el socket si hay un mensaje (read)
+ * En n está el número de bytes que recibe
+ * Imprime el mensaje (printf)
+ * 
+ * Sale del bucle si el mensaje es "end"
+*/
 void *funcion_hilo(void* new_sock_id) {
 int n=0;
 	do{
