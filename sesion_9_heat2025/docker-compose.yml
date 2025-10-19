@@ -1,0 +1,67 @@
+# docker-compose.yml
+# Este archivo es una alternativa/complemento al comando 'docker run'.
+# En lugar de escribir una larga línea de comandos con muchas banderas,
+# defines el estado deseado de tu contenedor aquí, de forma clara y legible.
+# Es la forma recomendada para gestionar entornos de desarrollo.
+
+# Define el nombre del proyecto. Esto evitará que se use el nombre del directorio.
+# El stack en Docker Desktop se llamará 'arqcom'.
+name: arqcom
+
+
+# 'services' es el contenedor de todos los contenedores que levantaremos.
+# En este caso, solo tenemos uno: nuestro entorno de desarrollo.
+services:
+  # 'dev-environment' es el nombre que le damos a nuestro servicio.
+  dev-environment:
+    # 'build: .' le dice a Compose que construya la imagen usando el
+    # Dockerfile que se encuentra en el directorio actual ('.').
+    # Si la imagen ya está construida (ej: 'mi-entorno-riscv'),
+    # podrías usar 'image: mi-entorno-riscv' en su lugar.
+    # build: .
+
+    image: arqcom_image:latest # Modificado por felipe
+    
+    # Nombre que le daremos al contenedor en ejecución.
+    # Equivale a la bandera '--name mi-devbox'.
+    container_name: arqcom_container
+    
+    # Mapeo de volúmenes para sincronizar archivos.
+    # Equivale a la bandera '-v "$(pwd)":/app'.
+    # Se mapean explícitamente las carpetas de prácticas deseadas desde el directorio padre ('../').
+    volumes:
+      - ../sesion_1_unix:/app/sesion_1_unix
+      - ../sesion_2_python:/app/sesion_2_python
+      - ../sesion_3_compilacion:/app/sesion_3_compilacion
+      - ../sesion_4_compilacion2:/app/sesion_4_compilacion2
+      - ../sesion_5_lazosSaltos:/app/sesion_5_lazosSaltos
+      - ../sesion_6_7_threads:/app/sesion_6_7_threads
+      - ../sesion_8_sockets:/app/sesion_8_sockets
+      - .:/app/sesion_9_heat2025 # Mapea el directorio actual a su carpeta correspondiente en /app
+      # Mapea la configuración de VS Code a la raíz del workspace en el contenedor.
+      # Esto permite que el depurador funcione correctamente al abrir la carpeta /app.
+      - ./.vscode:/app/.vscode
+
+    # Mapeo de puertos para acceder a la aplicación desde el host.
+    # Equivale a la bandera '-p 8000:8000'.
+    ports:
+      - "8000:8000" # Puerto para FastAPI
+      - "8010:8010"
+      - "8011-8020:8011-8020" # Rango de puertos para otras aplicaciones
+      - "2222:22" # Puerto para SSH (local:contenedor)
+      
+    # Mantiene el contenedor en ejecución de forma indefinida.
+    # La imagen ya tiene un CMD por defecto, pero esto asegura que
+    # si el CMD falla o no existe, el contenedor no se detenga.
+    # Con nuestro CMD ["tail", "-f", "/dev/null"] en el Dockerfile, esto
+    # es redundante, pero es una buena práctica para servicios que no se
+    # quedan escuchando por sí mismos.
+    tty: true
+
+    # --- Solución para tener BASH por defecto ---
+    # Sobrescribe el punto de entrada por defecto de la imagen.
+    # Al establecerlo a /bin/bash, cualquier comando 'docker exec' sin
+    # un comando específico se conectará a una sesión de bash.
+    entrypoint: /bin/bash
+    # El 'command' ahora se pasa como argumento al 'entrypoint'.
+    command: -c "tail -f /dev/null"
