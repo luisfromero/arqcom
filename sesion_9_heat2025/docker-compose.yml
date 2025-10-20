@@ -64,4 +64,4 @@ services:
     # un comando específico se conectará a una sesión de bash.
     entrypoint: /bin/bash
     # El 'command' ahora se pasa como argumento al 'entrypoint'.
-    command: -c "tail -f /dev/null"
+    command: -c "service ssh start && tail -f /dev/null"

@@ -47,7 +47,7 @@ RUN apt-get update && \
 # 1. Permite el login del usuario root.
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 # 2. Establece una contraseña para root. ¡CAMBIA ESTA CONTRASEÑA!
-RUN echo 'root:tu_contraseña_segura' | chpasswd
+RUN echo 'root:password' | chpasswd
 
 # Reemplaza /bin/sh con un enlace a /bin/bash.
 # Esto fuerza a que el shell por defecto sea bash, incluso para herramientas como Docker Desktop.
@@ -60,9 +60,14 @@ RUN pip3 install fastapi uvicorn
 WORKDIR /app
 
 # Expone el puerto 8000 para que la API de FastAPI sea accesible desde el host.
-# También exponemos el puerto 22 para SSH.
-EXPOSE 8000
+# También exponemos el puerto 22 para SSH y el rango para los servidores de prácticas.
+
+# Puerto FastAPI
+EXPOSE 8000 
+# Puerto ssh (acceso seguro terminal shell remoto)
 EXPOSE 22
+# Puerto prácticas
+EXPOSE 8010-8020
 
 # Comando por defecto que mantiene el contenedor en ejecución de forma indefinida.
 # Es útil para un entorno de desarrollo al que te conectarás repetidamente.
@@ -80,8 +85,8 @@ CMD service ssh start && tail -f /dev/null
 #
 # 3. Ejecuta el contenedor:
 #    (Esto mapea tu carpeta actual al directorio /app del contenedor y expone el puerto 8000)
-#    docker run -d -v "$(pwd)":/app -p 8000:8000 --name arqcom_container arqcom_image
-#
+#    
+#docker run -d -v "$(pwd)":/app -p 8000:8000 --name arqcom_container arqcom_image
 # 4. Accede a la terminal del contenedor para trabajar:
 #    docker exec -it arqcom_container /bin/bash
 #
