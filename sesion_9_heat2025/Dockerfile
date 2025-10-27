@@ -28,6 +28,8 @@ RUN apt-get update && \
       # Cadena de herramientas para compilación cruzada a RISC-V
       gcc-riscv64-linux-gnu \
       g++-riscv64-linux-gnu \
+      gcc-mips-linux-gnu \
+      g++-mips-linux-gnu \
       gdb-multiarch \
       # Entorno de Python
       python3 \
@@ -63,7 +65,7 @@ WORKDIR /app
 # También exponemos el puerto 22 para SSH y el rango para los servidores de prácticas.
 
 # Puerto FastAPI
-EXPOSE 8000 
+EXPOSE 8000
 # Puerto ssh (acceso seguro terminal shell remoto)
 EXPOSE 22
 # Puerto prácticas

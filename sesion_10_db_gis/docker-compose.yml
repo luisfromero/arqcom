@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # 1. Contenedor de Aplicación (Nginx + PHP)
+  web:
+    build:
+      context: ./web
+    container_name: mi_app_web
+    ports:
+      - "8080:80" # Accede a tu aplicación en http://localhost:8080
+    volumes:
+      - ./src:/var/www/html
+    depends_on:
+      - db
+    networks:
+      - mi_red
+
+  # 2. Contenedor de Base de Datos (MySQL)
+  db:
+    image: mysql:8.0
+    container_name: mi_app_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: mi_database
+      MYSQL_USER: mi_user
+      MYSQL_PASSWORD: mi_password
+      MYSQL_ROOT_PASSWORD: mi_root_password
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - mi_red
+
+  # 3. Contenedor de phpMyAdmin
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: mi_app_pma
+    restart: unless-stopped
+    ports:
+      - "8081:80" # Accede a phpMyAdmin en http://localhost:8081
+    environment:
+      PMA_HOST: db # Apunta al servicio 'db' de MySQL
+      PMA_PORT: 3306
+    depends_on:
+      - db
+    networks:
+      - mi_red
+
+networks:
+  mi_red:
+    driver: bridge
+
+volumes:
+  db_data: # Volumen para que los datos de MySQL no se pierdan
