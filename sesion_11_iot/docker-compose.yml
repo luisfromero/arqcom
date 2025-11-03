@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"   # MQTT TCP
+      - "9001:9001"   # MQTT over WebSockets (optional)
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-Europe/Madrid}
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_SECURE_COOKIE=false
+    env_file:
+      - ./n8n/.env
+    volumes:
+      - ./n8n/.n8n:/home/node/.n8n
+
+  # Optional: Ecowitt → MQTT bridge. If you don't have an Ecowitt gateway, you can disable this service.
+  ecowitt2mqtt:
+    image: ghcr.io/bachya/ecowitt2mqtt:latest
+    container_name: ecowitt2mqtt
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    environment:
+      - MQTT_BROKER_HOST=mosquitto
+      - MQTT_BROKER_PORT=1883
+      - MQTT_USERNAME=${MQTT_USERNAME:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - ECOWITT_PORT=8080
+      - LOG_LEVEL=INFO
+    ports:
+      - "8080:8080" # Ecowitt custom server endpoint
+
+networks:
+  default:
+    name: iot_net
+
