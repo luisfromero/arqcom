@@ -11,6 +11,12 @@ En esta entrega, construirás un proyecto en **n8n** que integrará disparadores
 5.  **Gestión de Credenciales**: Configurar y utilizar de forma segura las credenciales para los distintos servicios.
 
 ---
+Flujo de trabajo de un proyecto que usa la IA para encender un motor si llueve o lloverá de forma inminente:
+
+[Ejemplo del email resultado](n8n\prediccion_ia.md)
+
+<img src="n8n/n8n.jpg">
+
 
 ## 🛠️ Tu Entorno de Trabajo
 
