@@ -1,0 +1,5 @@
+D:\depaso\OneDrive - Universidad de Málaga\Proyectos cpp\docentes\arqcom todo\HeatServer2020\heatOpenMp\Debug\heatServer.exe
+D:\depaso\OneDrive - Universidad de Málaga\Proyectos cpp\docentes\arqcom todo\HeatServer2020\heatOpenMp\Debug\heatServer.pdb
+D:\proyectos\arqcom\heat\HeatServer2020\heatOpenMp\Debug\heatServer.exe
+D:\proyectos\arqcom\heat\HeatServer2020\heatOpenMp\Debug\heatServer.pdb
+D:\OneDrive - Universidad de Málaga\proyectos\ACpracticas\revisar\heat\HeatServer2020\heatOpenMp\Debug\heatServer.exe

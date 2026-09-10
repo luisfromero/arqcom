@@ -1,0 +1,144 @@
+{
+  "name": "IoT - ¿Llueve? (Ecowitt + Meteo + Shelly)",
+  "nodes": [
+    {
+      "parameters": {
+        "broker": "mqtt://mosquitto:1883",
+        "topic": "ecowitt/#",
+        "options": {}
+      },
+      "id": "MQTTTrigger",
+      "name": "MQTT Trigger",
+      "type": "n8n-nodes-base.mqttTrigger",
+      "typeVersion": 1,
+      "position": [
+        260,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.open-meteo.com/v1/forecast",
+        "options": {},
+        "queryParameters": {
+          "parameters": [
+            { "name": "latitude", "value": "36.72" },
+            { "name": "longitude", "value": "-4.42" },
+            { "name": "hourly", "value": "precipitation" }
+          ]
+        }
+      },
+      "id": "MeteoHTTP",
+      "name": "Open-Meteo (precip)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        520,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const now = new Date();\nconst hour = now.getUTCHours();\n// Open-Meteo returns hourly.precipitation aligned to time[]\nconst data = items[0].json;\nlet precip = 0;\ntry {\n  const idx = data.hourly.time.indexOf(data.current?.time || data.hourly.time[hour] || data.hourly.time[0]);\n  precip = Number(data.hourly.precipitation[idx] || 0);\n} catch (e) { precip = 0; }\nreturn [{ json: { precip } }];"
+      },
+      "id": "ExtractPrecip",
+      "name": "Extraer precipitación",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [
+        770,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.precip}}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "IFRain",
+      "name": "¿Llueve?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1010,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "broker": "mqtt://mosquitto:1883",
+        "topic": "shellies/REEMPLAZA_DEVICE_ID/relay/0/command",
+        "payload": "on"
+      },
+      "id": "ShellyOn",
+      "name": "Shelly ON",
+      "type": "n8n-nodes-base.mqtt",
+      "typeVersion": 1,
+      "position": [
+        1240,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "broker": "mqtt://mosquitto:1883",
+        "topic": "shellies/REEMPLAZA_DEVICE_ID/relay/0/command",
+        "payload": "off"
+      },
+      "id": "ShellyOff",
+      "name": "Shelly OFF",
+      "type": "n8n-nodes-base.mqtt",
+      "typeVersion": 1,
+      "position": [
+        1240,
+        360
+      ]
+    }
+  ],
+  "connections": {
+    "MQTT Trigger": {
+      "main": [
+        [
+          { "node": "Open-Meteo (precip)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Open-Meteo (precip)": {
+      "main": [
+        [
+          { "node": "Extraer precipitación", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Extraer precipitación": {
+      "main": [
+        [
+          { "node": "¿Llueve?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "¿Llueve?": {
+      "main": [
+        [
+          { "node": "Shelly ON", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Shelly OFF", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetup": true
+  },
+  "active": false
+}
+

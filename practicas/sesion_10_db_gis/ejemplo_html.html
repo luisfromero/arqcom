@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<!--
+  La declaración <!DOCTYPE html> define que este documento es un documento HTML5.
+  Es la primera línea que debe aparecer en tu archivo.
+-->
+
+<html lang="es">
+<!--
+  El elemento <html> es el elemento raíz de una página HTML.
+  El atributo 'lang="es"' indica que el idioma principal de la página es español.
+-->
+
+<head>
+    <!--
+      El elemento <head> contiene metadatos (datos sobre el documento HTML).
+      No se muestra en la página, pero es procesado por los navegadores y los buscadores.
+    -->
+
+    <meta charset="UTF-8">
+    <!--
+      La etiqueta <meta charset="UTF-8"> especifica la codificación de caracteres del documento.
+      UTF-8 es un estándar que incluye casi todos los caracteres y símbolos del mundo.
+      Es muy importante para que las tildes y la 'ñ' se vean correctamente.
+    -->
+
+    <title>Mi Primera Página HTML</title>
+    <!--
+      El elemento <title> define el título del documento, que se muestra en la pestaña del navegador.
+    -->
+</head>
+
+<body>
+    <!--
+      El elemento <body> contiene todo el contenido visible de la página web:
+      títulos, párrafos, imágenes, enlaces, etc.
+    -->
+
+    <h1>Este es un Título Principal (h1)</h1>
+    <p>
+        Los párrafos se definen con la etiqueta &lt;p&gt;. Este es el lugar donde escribes la mayor parte de tu texto.
+        Puedes usar etiquetas como <strong>&lt;strong&gt;</strong> para dar importancia al texto (generalmente se ve en negrita)
+        o <em>&lt;em&gt;</em> para enfatizarlo (generalmente se ve en cursiva).
+    </p>
+
+    <h2>Esto es un Subtítulo (h2)</h2>
+    <p>Los títulos van desde &lt;h1&gt; (el más importante) hasta &lt;h6&gt; (el menos importante).</p>
+
+    <h3>Listas: una forma de organizar información</h3>
+
+    <h4>Lista no ordenada (con viñetas)</h4>
+    <ul>
+        <!-- <ul> significa "Unordered List" -->
+        <li>Primer elemento de la lista.</li>
+        <li>Segundo elemento de la lista.</li>
+        <li>Tercer elemento.</li>
+    </ul>
+
+    <h4>Lista ordenada (con números)</h4>
+    <ol>
+        <!-- <ol> significa "Ordered List" -->
+        <li>Primer paso.</li>
+        <li>Segundo paso.
+            <ul>
+                <li>Esto es un sub-elemento anidado.</li>
+            </ul>
+        </li>
+        <li>Tercer paso.</li>
+    </ol>
+
+    <h3>Enlaces (Hipervínculos)</h3>
+    <p>
+        Los enlaces se crean con la etiqueta &lt;a&gt; (anchor). El atributo `href` especifica la URL de destino.
+        <br> <!-- <br> es un salto de línea simple. -->
+        Puedes visitar <a href="https://www.google.com" target="_blank">Google</a> para buscar más información. El atributo `target="_blank"` hace que el enlace se abra en una nueva pestaña.
+    </p>
+
+</body>
+
+</html>
