@@ -4,7 +4,7 @@ a=4
 print(a*3)
 x=3
 
-
+# exit();
 import sys # Para obtener los argumentos de entrada al script
 import numpy as np # Librería matemática, para binary_repr
 a=3
