@@ -28,6 +28,7 @@ public:
     }
 };
 
+
 class Mercedes : public Coche {
     std::string clase;
 
