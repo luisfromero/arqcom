@@ -295,6 +295,20 @@ volver, girar el móvil, cerrar la app. ¿Qué secuencia ves en cada caso?
 
 ---
 
+## Proyecto · Reproductor de melodías por MQTT
+
+Esta mini-app enlaza con las prácticas anteriores de la asignatura (sockets, sesión de IoT
+con MQTT) y se construye en varios pasos:
+
+| Paso | Qué hace |
+|------|----------|
+| [paso1.md](paso1.md) | Crear el proyecto: una Empty Activity con Compose que arranca y muestra "Hello Android!" |
+| [paso2.md](paso2.md) | Preparar las herramientas: añadir las librerías de HTTP (OkHttp), JSON y MQTT (Eclipse Paho) |
+| [paso3.md](paso3.md) | Usar las herramientas: descargar un JSON por HTTP, y publicarse/suscribirse a un topic MQTT |
+| Paso 4 (lo hacéis vosotros) | La app final: descargar un JSON con un array de canciones y mostrarlo en pantalla como una lista. Al pulsar una canción se publica un mensaje MQTT que hace que un **ESP32-C3** reproduzca esa melodía. |
+
+---
+
 ## Para seguir aprendiendo
 
 - **Navegación entre pantallas**: *Navigation Compose*.
