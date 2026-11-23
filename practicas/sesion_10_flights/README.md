@@ -3,7 +3,7 @@
 API REST (pensada para una app Android) que consulta Google Flights con
 [`fast-flights`](https://github.com/AWeirdDev/flights). Además, vigila a diario una ruta, guarda el
 mínimo del día en `./data/prices.csv` y avisa por webhook (n8n, Discord, Telegram…) cuando el precio
-baja de un umbral.
+baja de un umbral. Para las ofertas de vuelo, busca también el alojamiento más barato en Google Hotels.
 
 ## Archivos
 
@@ -15,6 +15,7 @@ baja de un umbral.
 | `api.py` | API REST (FastAPI) + seguimiento diario en segundo plano |
 | `deals.py` | Escaneo de ofertas ida y vuelta a capitales europeas (`/api/deals`) |
 | `precompute.py` | Precálculo programado en SQLite (`/api/deals/latest`, respuesta instantánea) |
+| `hotels.py` | Alojamiento barato en Google Hotels con Playwright (`/api/hotels`) |
 | `flujo_n8n.json` | Flujo de n8n que muestra las ofertas como página web |
 | `flight_tracker.py` | Consulta, log, historial CSV y webhook (también se puede usar desde línea de comandos o cron) |
 
@@ -208,6 +209,56 @@ curl -H "X-API-Key: $API_KEY" "http://localhost:8000/api/deals/latest?max_price=
 - `prev_price` / `price_change`: precio del escaneo anterior y diferencia (negativo = ha bajado).
 - No se sirven precios con más de `max_age_hours` horas, y las salidas ya pasadas se borran.
 - La rejilla se configura con las variables `PRECOMPUTE_*` (ver tabla de variables).
+- Cada oferta incluye `hotel` (el alojamiento más barato que cumple los filtros, o `null`),
+  `trip_total` (vuelo + alojamiento) y `google_hotels_url`. Ver la sección siguiente.
+
+## Alojamiento barato (Google Hotels)
+
+Google Hotels no tiene API pública: `hotels.py` abre la página de resultados en Chromium headless
+(Playwright), ordenada por **precio más económico**, y lee las ~18 primeras fichas: nombre, precio
+total con impuestos, precio por noche, valoración, reseñas, estrellas y enlace. Las fechas, adultos,
+moneda y orden van en el parámetro `ts` de la URL (un protobuf en base64 que se genera en
+`build_ts`; Google ignora `checkin`/`checkout`). Una búsqueda tarda ~3-10 s.
+
+**Precálculo.** Al terminar cada escaneo de vuelos se busca alojamiento para las combinaciones con
+vuelo ≤ `HOTELS_FLIGHT_MAX_PRICE` (100 €), las más baratas primero y como mucho
+`HOTELS_MAX_SEARCHES` (200), saltando las buscadas hace menos de `HOTELS_STALE_HOURS` (20 h): en la
+práctica, una vez al día (~6 min). La entrada es el día del vuelo de ida y la salida el de vuelta.
+Se guarda en las tablas `hotel_searches` y `hotels` de `deals.db`.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/hotels` | Alojamientos de un destino. `destination` (`LIS` o nombre de ciudad), `checkin`, `checkout`, `adults` (1), `min_rating` (3.5), `min_reviews` (20), `max_price_night`, `include_hostels` (true), `limit` (10), `refresh`. Usa lo guardado si tiene < 48 h; si no, busca en vivo |
+| POST | `/api/hotels/scan` | Buscar ya el alojamiento de las ofertas sin datos recientes (`409` si hay un escaneo en curso) |
+
+Parámetros añadidos a `/api/deals/latest`: `hotel_min_rating` (3.5), `hotel_min_reviews` (20),
+`include_hostels` (true), `max_total` (vuelo + alojamiento) y `sort=total` (ordenar por el viaje
+completo en lugar de por el vuelo).
+
+```bash
+curl -H "X-API-Key: $API_KEY" "http://localhost:8000/api/deals/latest?sort=total&max_total=150&include_hostels=false"
+curl -H "X-API-Key: $API_KEY" "http://localhost:8000/api/hotels?destination=LIS&checkin=2026-12-11&checkout=2026-12-14"
+```
+
+```json
+{
+  "destination": "LIS", "city": "Lisboa", "checkin": "2026-12-11", "checkout": "2026-12-14",
+  "nights": 3, "adults": 1, "source": "precomputed", "checked_at": "2026-11-23T10:37:40+01:00",
+  "google_hotels_url": "https://www.google.com/travel/search?q=hoteles%20en%20Lisboa&ts=...",
+  "found": 18, "count": 12,
+  "hotels": [
+    {"hotel_id": "ChkI...", "name": "White House Lisbon Hostel", "price_total": 36.0,
+     "price_night": 12.0, "currency": "EUR", "rating": 4.0, "reviews": 279, "stars": 1,
+     "hostel": true, "url": "https://www.google.com/travel/hotels/entity/ChkI.../prices?ts=..."}
+  ]
+}
+```
+
+- Precios **por persona** (1 adulto). En los albergues suelen ser una cama en habitación
+  compartida: `hostel` se deduce del nombre; `include_hostels=false` los excluye.
+- `url` abre la comparativa de precios de ese alojamiento en Google con las fechas puestas.
+- Los filtros por defecto (`HOTELS_MIN_RATING`, `HOTELS_MIN_REVIEWS`) evitan alojamientos con mala
+  valoración o sin apenas reseñas; pon `min_rating=0&min_reviews=0` para verlos todos.
 
 ## Cliente Android
 
@@ -457,6 +508,13 @@ En `docker-compose.yml`: `ROOT_PATH: "/vuelos-api"` y `docker compose up -d`. El
 | `PRECOMPUTE_STALE_HOURS` | `12` | Al arrancar, escanear si el último es más viejo |
 | `PRECOMPUTE_MAX_AGE_HOURS` | `36` | No servir precios más viejos |
 | `PRECOMPUTE_DB` | `/data/deals.db` | Base de datos SQLite |
+| `HOTELS_ENABLED` | `true` | Buscar alojamiento tras cada precálculo |
+| `HOTELS_FLIGHT_MAX_PRICE` | `100` | Solo para combinaciones con vuelo ≤ este precio |
+| `HOTELS_MAX_SEARCHES` | `200` | Búsquedas de alojamiento por escaneo como máximo |
+| `HOTELS_STALE_HOURS` | `20` | No repetir una búsqueda más reciente |
+| `HOTELS_MAX_AGE_HOURS` | `48` | No servir alojamiento más viejo |
+| `HOTELS_CONCURRENCY` | `2` | Chromium simultáneos para hoteles (~300 MB cada uno) |
+| `HOTELS_MIN_RATING` / `HOTELS_MIN_REVIEWS` | `3.5` / `20` | Filtros por defecto de la API |
 | `PORT` | `8000` | Puerto interno de la API |
 | `ORIGIN`, `DESTINATION` | — | Ruta en seguimiento diario (códigos IATA). Vacías = solo búsquedas por API |
 | `DEPARTURE_DATE` | — | `YYYY-MM-DD` de la ruta en seguimiento |
@@ -553,3 +611,6 @@ y pon `FETCH_MODE: "common"`.
   por eso `primp` está fijado a `0.14.0`.
 - `fast-flights` lee el HTML de Google; si Google cambia su marcado, la consulta dejará de funcionar
   hasta que se actualice la librería.
+- **Google Hotels** se lee de la página (`EXTRACT_JS` en `hotels.py`: fichas con enlace
+  «Precios de …», un `<h2>` con el nombre y la valoración en `aria-label`) y en español. Si Google
+  cambia la página o el formato de `ts`, `/api/hotels` devolverá listas vacías hasta ajustarlo.

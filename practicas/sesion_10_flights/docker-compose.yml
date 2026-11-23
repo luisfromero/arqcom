@@ -31,6 +31,15 @@ services:
       PRECOMPUTE_MAX_AGE_HOURS: "36"    # no se sirven precios más viejos
       PRECOMPUTE_DB: "/data/deals.db"
 
+      # --- Alojamiento barato en Google Hotels (Playwright, /api/hotels) ---
+      HOTELS_ENABLED: "true"            # tras cada precálculo, busca alojamiento para los vuelos baratos
+      HOTELS_FLIGHT_MAX_PRICE: "100"    # solo combinaciones con vuelo <= este precio
+      HOTELS_MAX_SEARCHES: "200"        # máximo de búsquedas por escaneo (~10 s cada una)
+      HOTELS_STALE_HOURS: "20"          # no repite una búsqueda más reciente (≈ una vez al día)
+      HOTELS_CONCURRENCY: "2"           # Chromium simultáneos (≈300 MB cada uno)
+      HOTELS_MIN_RATING: "3.5"          # filtros por defecto: valoración y nº de reseñas mínimos
+      HOTELS_MIN_REVIEWS: "20"
+
       # --- Ruta en seguimiento diario (vacía ORIGIN para usar solo /api/search) ---
       ORIGIN: "AGP"
       DESTINATION: "LHR"

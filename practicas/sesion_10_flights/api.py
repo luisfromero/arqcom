@@ -18,6 +18,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Security
 from fastapi.security import APIKeyHeader
 
 import flight_tracker as ft
+import hotels
 import precompute
 from deals import make_router
 
@@ -112,10 +113,11 @@ async def lifespan(_app):
     yield
 
 
-app = FastAPI(title="Flight Tracker API", version="1.2", lifespan=lifespan, root_path=ROOT_PATH)
+app = FastAPI(title="Flight Tracker API", version="1.3", lifespan=lifespan, root_path=ROOT_PATH)
 # El router de precálculo va primero: /api/deals/latest y /scans antes que /api/deals/{job_id}
 app.include_router(precompute.make_router(cached_search, require_key))
 app.include_router(make_router(cached_search, require_key))
+app.include_router(hotels.make_router(require_key, precompute))
 
 
 # --------------------------------------------------------------------------- #

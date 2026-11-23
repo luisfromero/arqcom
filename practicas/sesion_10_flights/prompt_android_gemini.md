@@ -44,7 +44,15 @@ Respuesta:
       "airline": "Ryanair", "departure": "8:30 PM on Fri, Dec 11", "arrival": "8:55 PM on Fri, Dec 11",
       "duration": "1 hr 25 min", "stops": 0, "stops_text": "directo",
       "checked_at": "2026-11-18T11:31:02+01:00",
-      "google_flights_url": "https://www.google.com/travel/flights?tfs=...&hl=es&curr=EUR"
+      "google_flights_url": "https://www.google.com/travel/flights?tfs=...&hl=es&curr=EUR",
+      "hotel": {
+        "hotel_id": "ChkI...", "name": "Lisboa Parque Guest House", "price_total": 36.0,
+        "price_night": 12.0, "currency": "EUR", "rating": 3.5, "reviews": 321, "stars": null,
+        "hostel": false, "url": "https://www.google.com/travel/hotels/entity/.../prices?ts=..."
+      },
+      "hotels_checked": true,
+      "trip_total": 98.0,
+      "google_hotels_url": "https://www.google.com/travel/search?q=hoteles%20en%20Lisboa&ts=..."
     }
   ],
   "cheapest_by_destination": [
@@ -54,7 +62,9 @@ Respuesta:
   ]
 }
 ```
-Notas: `prev_price` y `price_change` pueden ser `null`; `stops` puede ser `null`; `price_level` puede ser `null` (`"low"`, `"typical"`, `"high"`). `departure`/`arrival` vienen en inglés: muestra solo la hora, lo que hay antes de `" on "`. Lo precalculado cubre salidas en jueves, viernes y sábado, 2-4 noches, próximas 8 semanas. Si lo pedido queda fuera, `coverage_ok` es `false` y `coverage_notes` explica por qué (ej. `"Días de salida no precalculados: lun"`).
+Parámetros de alojamiento (opcionales): `hotel_min_rating` (Double, defecto 3.5), `hotel_min_reviews` (Int, defecto 20), `include_hostels` (Boolean, defecto true), `max_total` (Double, máximo vuelo + alojamiento), `sort` (`"price"` por vuelo o `"total"` por vuelo + alojamiento).
+
+Notas: `hotel` es el alojamiento más barato que cumple los filtros (precio **total** de todas las noches, por persona); puede ser `null` y entonces `trip_total` también. `hotels_checked: false` significa que aún no se ha buscado alojamiento para esa oferta (mostrar "Buscar alojamiento" abriendo `google_hotels_url`). `hostel: true` = albergue (cama en habitación compartida). `rating`, `reviews` y `stars` pueden ser `null`. `prev_price` y `price_change` pueden ser `null`; `stops` puede ser `null`; `price_level` puede ser `null` (`"low"`, `"typical"`, `"high"`). `departure`/`arrival` vienen en inglés: muestra solo la hora, lo que hay antes de `" on "`. Lo precalculado cubre salidas en jueves, viernes y sábado, 2-4 noches, próximas 8 semanas. Si lo pedido queda fuera, `coverage_ok` es `false` y `coverage_notes` explica por qué (ej. `"Días de salida no precalculados: lun"`).
 
 ### B) Búsqueda en vivo (solo si `coverage_ok == false`)
 
@@ -81,6 +91,14 @@ Puede tardar de 15 s a varios minutos: barra de progreso con `progress.percent` 
 ### C) Otros (opcional, segunda pantalla)
 
 - `GET api/deals/capitals` → `[{"code": "LON", "city": "Londres", "country": "Reino Unido"}, ...]` (para un selector de destinos).
+- `GET api/hotels?destination=LIS&checkin=2026-12-11&checkout=2026-12-14` (opcionales: `min_rating`, `min_reviews`, `max_price_night`, `include_hostels`, `limit`, `refresh`) → lista de alojamientos de esa oferta, para una pantalla de detalle:
+  ```json
+  {"destination": "LIS", "city": "Lisboa", "checkin": "2026-12-11", "checkout": "2026-12-14", "nights": 3,
+   "source": "precomputed", "checked_at": "2026-11-23T10:40:12+01:00",
+   "google_hotels_url": "https://...", "found": 18, "count": 12,
+   "hotels": [ /* mismos campos que "hotel" en latest */ ]}
+  ```
+  Si no hay datos guardados busca en vivo (3-10 s): mostrar un indicador de carga.
 
 ## 3. Errores
 
@@ -96,8 +114,9 @@ Modela el estado de la pantalla con una `sealed interface` (Cargando, Datos, Bus
 
 - Filtros arriba: precio máximo (Slider 30-300 €, por defecto 100), chips de día de salida (L M X J V S D; por defecto V), rango de noches (2-3 por defecto), destinos opcionales.
 - Botón **Buscar**: llama a `latest`. Si `coverage_ok` es `true` muestra la lista y "Actualizado hace X min" (de `age_minutes`). Si es `false`, muestra `coverage_notes` y un botón **Buscar en vivo** que lanza el flujo B.
-- Lista (`LazyColumn`) de tarjetas: precio grande, ciudad + país, fechas formateadas en español ("vie 11/12 → lun 14/12"), noches, aerolínea, horario de ida, duración, escalas. Si `price_change < 0`, una etiqueta verde "↓ 3 €".
-- Al tocar una tarjeta: abrir `google_flights_url` con `Intent.ACTION_VIEW`.
+- Filtros de alojamiento: interruptor "Incluir albergues" y orden "Por vuelo / Por viaje completo" (`sort`).
+- Lista (`LazyColumn`) de tarjetas: precio grande, ciudad + país, fechas formateadas en español ("vie 11/12 → lun 14/12"), noches, aerolínea, horario de ida, duración, escalas. Si `price_change < 0`, una etiqueta verde "↓ 3 €". Debajo, una fila de alojamiento: nombre, `price_total` (y `price_night`/noche), valoración con estrella, etiqueta "Albergue" si `hostel`; y destacado el **total del viaje** (`trip_total`).
+- Al tocar la parte del vuelo: abrir `google_flights_url`; al tocar la del alojamiento: abrir `hotel.url` (o `google_hotels_url` si `hotel` es `null`), con `Intent.ACTION_VIEW`. Un botón "Más alojamientos" abre la pantalla de detalle con `api/hotels`.
 - Pull-to-refresh para repetir la consulta.
 
 ## 5. Entregables

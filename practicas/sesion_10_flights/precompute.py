@@ -8,6 +8,9 @@ Endpoints (todos bajo /api/deals, registrados ANTES que /api/deals/{job_id}):
   GET  /api/deals/latest   ofertas precalculadas con filtros
   GET  /api/deals/scans    escaneo en curso + últimos escaneos
   POST /api/deals/scans    lanzar un escaneo ahora
+
+Tras los vuelos, cada escaneo busca alojamiento (hotels.py) para las combinaciones con vuelo
+barato, y /latest añade a cada oferta el alojamiento más barato y el total vuelo + alojamiento.
 """
 
 import json
@@ -23,6 +26,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 import flight_tracker as ft
+import hotels as hz
 from deals import CAPITALS, DEFAULT_ORIGIN, WORKERS, fetch_combo
 
 log = logging.getLogger("flights")
@@ -47,11 +51,17 @@ WEEKS = int(ft.env("PRECOMPUTE_WEEKS", "8"))
 START_DAYS = int(ft.env("PRECOMPUTE_START_DAYS", "2"))            # primera salida: hoy + N
 STALE_HOURS = float(ft.env("PRECOMPUTE_STALE_HOURS", "12"))      # al arrancar, escanear si es más viejo
 MAX_AGE_HOURS = float(ft.env("PRECOMPUTE_MAX_AGE_HOURS", "36"))  # precios más viejos no se sirven
+# Alojamiento: solo para combinaciones con vuelo barato (cada búsqueda tarda ~10 s)
+HOTELS_ENABLED = ft.env("HOTELS_ENABLED", "true").lower() in {"1", "true", "yes"}
+HOTELS_FLIGHT_MAX_PRICE = float(ft.env("HOTELS_FLIGHT_MAX_PRICE", "100"))
+HOTELS_MAX_SEARCHES = int(ft.env("HOTELS_MAX_SEARCHES", "200"))     # por escaneo, las más baratas
+HOTELS_STALE_HOURS = float(ft.env("HOTELS_STALE_HOURS", "20"))      # no repetir si es más reciente
+HOTELS_MAX_AGE_HOURS = float(ft.env("HOTELS_MAX_AGE_HOURS", "48"))  # más viejos no se sirven
 DAY_NAMES = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"]
 
 _db_lock = threading.Lock()
 _scan_lock = threading.Lock()      # un escaneo cada vez
-_current = {"scan": None}          # progreso del escaneo en curso (en memoria)
+_current = {"scan": None, "hotels": None}  # progreso en curso (en memoria)
 
 
 # --------------------------------------------------------------------------- #
@@ -73,6 +83,17 @@ CREATE TABLE IF NOT EXISTS prices (
     PRIMARY KEY (origin, destination, departure_date, nights)
 );
 CREATE INDEX IF NOT EXISTS idx_prices_origin_price ON prices (origin, price);
+CREATE TABLE IF NOT EXISTS hotel_searches (
+    destination TEXT, checkin TEXT, nights INTEGER, checkout TEXT,
+    url TEXT, found INTEGER, checked_at TEXT, checked_ts INTEGER,
+    PRIMARY KEY (destination, checkin, nights)
+);
+CREATE TABLE IF NOT EXISTS hotels (
+    destination TEXT, checkin TEXT, nights INTEGER, rank INTEGER,
+    hotel_id TEXT, name TEXT, price_total REAL, price_night REAL, currency TEXT,
+    rating REAL, reviews INTEGER, stars INTEGER, hostel INTEGER, url TEXT,
+    PRIMARY KEY (destination, checkin, nights, rank)
+);
 """
 
 
@@ -105,6 +126,62 @@ def save_price(item, origin, scan_id):
            f"prev_price=prices.price, {updates}")
     with _db_lock, connect() as conn:
         conn.execute(sql, [row[c] for c in cols])
+
+
+HOTEL_COLS = ["hotel_id", "name", "price_total", "price_night", "currency", "rating", "reviews",
+              "stars", "hostel", "url"]
+
+
+def save_hotels(destination, checkin, checkout, url, hotels):
+    """Sustituye los alojamientos guardados de (destino, entrada, noches). 1 adulto."""
+    now = datetime.now().astimezone()
+    nights = (checkout - checkin).days
+    key = (destination, checkin.isoformat(), nights)
+    with _db_lock, connect() as conn:
+        conn.execute("DELETE FROM hotels WHERE destination=? AND checkin=? AND nights=?", key)
+        conn.executemany(
+            f"INSERT INTO hotels (destination, checkin, nights, rank, {', '.join(HOTEL_COLS)}) "
+            f"VALUES (?, ?, ?, ?, {', '.join('?' * len(HOTEL_COLS))})",
+            [(*key, i, *[h[c] for c in HOTEL_COLS]) for i, h in enumerate(hotels)])
+        conn.execute("INSERT OR REPLACE INTO hotel_searches VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                     (*key, checkout.isoformat(), url, len(hotels),
+                      now.isoformat(timespec="seconds"), int(now.timestamp())))
+
+
+def _hotel_row(r):
+    h = {c: r[c] for c in HOTEL_COLS}
+    h["hostel"] = bool(h["hostel"]) or bool(hz.HOSTEL_RE.search(h["name"] or ""))  # regla actual
+    return h
+
+
+def stored_hotels(destination, checkin, nights, max_age_hours=HOTELS_MAX_AGE_HOURS):
+    """Alojamientos guardados si son recientes (None si no hay o son viejos)."""
+    with connect() as conn:
+        s = conn.execute("SELECT * FROM hotel_searches WHERE destination=? AND checkin=? AND nights=? "
+                         "AND checked_ts >= ?", (destination, checkin.isoformat(), nights,
+                                                 int(time.time() - max_age_hours * 3600))).fetchone()
+        if not s:
+            return None
+        rows = conn.execute("SELECT * FROM hotels WHERE destination=? AND checkin=? AND nights=? "
+                            "ORDER BY rank", (destination, checkin.isoformat(), nights)).fetchall()
+    return {"checked_at": s["checked_at"], "url": s["url"], "hotels": [_hotel_row(r) for r in rows]}
+
+
+def all_stored_hotels(max_age_hours=HOTELS_MAX_AGE_HOURS):
+    """{(destino, entrada, noches): [alojamientos por precio]} de las búsquedas recientes."""
+    out = {}
+    with connect() as conn:
+        searches = conn.execute("SELECT destination, checkin, nights FROM hotel_searches "
+                                "WHERE checked_ts >= ?",
+                                (int(time.time() - max_age_hours * 3600),)).fetchall()
+        for s in searches:
+            out[(s["destination"], s["checkin"], s["nights"])] = []
+        rows = conn.execute("SELECT * FROM hotels ORDER BY destination, checkin, nights, rank").fetchall()
+    for r in rows:
+        key = (r["destination"], r["checkin"], r["nights"])
+        if key in out:
+            out[key].append(_hotel_row(r))
+    return out
 
 
 def last_finished_scan():
@@ -183,10 +260,76 @@ def run_scan(cached_search):
             conn.execute("DELETE FROM prices WHERE departure_date < ?", (date.today().isoformat(),))
         log.info("Precálculo #%d terminado en %.0f min: %d precios, %d sin datos", scan_id,
                  (time.time() - t0) / 60, state["found"], state["errors"])
+        _current["scan"] = None
+        run_hotels(scan_id)
         return True
     finally:
         _current["scan"] = None
         _scan_lock.release()
+
+
+def run_hotels(scan_id=None):
+    """Busca alojamiento para las combinaciones con vuelo barato sin datos recientes."""
+    if not HOTELS_ENABLED:
+        return
+    today = date.today().isoformat()
+    with connect() as conn:
+        combos = conn.execute(
+            "SELECT p.destination, p.departure_date, p.return_date, p.nights FROM prices p "
+            "LEFT JOIN hotel_searches s ON s.destination=p.destination AND s.checkin=p.departure_date "
+            "AND s.nights=p.nights "
+            "WHERE p.origin=? AND p.price<=? AND p.departure_date>? "
+            "AND (s.checked_ts IS NULL OR s.checked_ts < ?) ORDER BY p.price LIMIT ?",
+            (ORIGIN, HOTELS_FLIGHT_MAX_PRICE, today, int(time.time() - HOTELS_STALE_HOURS * 3600),
+             HOTELS_MAX_SEARCHES)).fetchall()
+    state = {"scan_id": scan_id, "total": len(combos), "done": 0, "errors": 0,
+             "started_at": datetime.now().astimezone().isoformat(timespec="seconds")}
+    _current["hotels"] = state
+    lock = threading.Lock()
+    log.info("Alojamiento: %d búsquedas (vuelos <= %.0f €)", len(combos), HOTELS_FLIGHT_MAX_PRICE)
+    t0 = time.time()
+
+    def one(r):
+        dest = r["destination"]
+        ci, co = date.fromisoformat(r["departure_date"]), date.fromisoformat(r["return_date"])
+        try:
+            url, found, _ = hz.search_hotels(CAPITALS[dest][0], ci, co, refresh=True)
+            save_hotels(dest, ci, co, url, found)
+        except Exception as exc:  # noqa: BLE001
+            with lock:
+                state["errors"] += 1
+            log.debug("Alojamiento %s %s: %s", dest, ci, exc)
+        finally:
+            with lock:
+                state["done"] += 1
+                if state["done"] % 50 == 0:
+                    log.info("Alojamiento: %d/%d", state["done"], state["total"])
+
+    try:
+        with ThreadPoolExecutor(max_workers=hz.CONCURRENCY) as pool:
+            list(pool.map(one, combos))
+        with _db_lock, connect() as conn:
+            conn.execute("DELETE FROM hotels WHERE checkin <= ?", (today,))
+            conn.execute("DELETE FROM hotel_searches WHERE checkin <= ?", (today,))
+        log.info("Alojamiento terminado en %.0f min: %d búsquedas, %d fallidas",
+                 (time.time() - t0) / 60, state["done"], state["errors"])
+    finally:
+        _current["hotels"] = None
+
+
+def start_hotels_thread():
+    """Solo la fase de alojamiento (comparte el candado con los escaneos)."""
+    if not _scan_lock.acquire(blocking=False):
+        return False
+
+    def target():
+        try:
+            run_hotels()
+        finally:
+            _scan_lock.release()
+
+    threading.Thread(target=target, daemon=True, name="hotels").start()
+    return True
 
 
 def start_scan_thread(cached_search):
@@ -242,6 +385,13 @@ def make_router(cached_search, require_key):
         max_age_hours: float = Query(MAX_AGE_HOURS, gt=0, description="Ignorar precios más viejos"),
         limit: int = Query(100, ge=1, le=2000),
         origin: Optional[str] = Query(None, description="Solo se precalcula PRECOMPUTE_ORIGIN"),
+        hotel_min_rating: float = Query(hz.MIN_RATING, ge=0, le=5,
+                                        description="Valoración mínima del alojamiento"),
+        hotel_min_reviews: int = Query(hz.MIN_REVIEWS, ge=0),
+        include_hostels: bool = Query(True, description="Admitir albergues (cama en habitación compartida)"),
+        max_total: Optional[float] = Query(None, gt=0, description="Máximo vuelo + alojamiento"),
+        sort: str = Query("price", pattern="^(price|total)$",
+                          description="price = por vuelo; total = por vuelo + alojamiento"),
     ):
         """Ofertas precalculadas: respuesta instantánea desde la base de datos."""
         if not ENABLED:
@@ -275,6 +425,7 @@ def make_router(cached_search, require_key):
             rows = conn.execute(f"SELECT * FROM prices WHERE {' AND '.join(where)} "
                                 "ORDER BY price, departure_date", args).fetchall()
         last = last_finished_scan()
+        stays = all_stored_hotels()
 
         def item(r):
             d = {k: r[k] for k in ("destination", "departure_date", "return_date", "nights", "price",
@@ -283,10 +434,20 @@ def make_router(cached_search, require_key):
                                    "checked_at", "prev_price")}
             city, country = CAPITALS.get(r["destination"], (r["destination"], ""))
             change = None if r["prev_price"] is None else round(r["price"] - r["prev_price"], 2)
-            return {**d, "city": city, "country": country, "price_change": change}
+            options = stays.get((r["destination"], r["departure_date"], r["nights"]))
+            ok = hz.filter_hotels(options or [], hotel_min_rating, hotel_min_reviews, None, include_hostels)
+            hotel = ok[0] if ok else None
+            ci, co = date.fromisoformat(r["departure_date"]), date.fromisoformat(r["return_date"])
+            return {**d, "city": city, "country": country, "price_change": change,
+                    "hotel": hotel, "hotels_checked": options is not None,
+                    "trip_total": round(r["price"] + hotel["price_total"], 2) if hotel else None,
+                    "google_hotels_url": hz.hotels_url(city, ci, co)}
 
         all_items = [item(r) for r in rows]
-        deals = [x for x in all_items if x["price"] <= max_price]
+        deals = [x for x in all_items if x["price"] <= max_price
+                 and (max_total is None or (x["trip_total"] is not None and x["trip_total"] <= max_total))]
+        if sort == "total":
+            deals.sort(key=lambda x: (x["trip_total"] is None, x["trip_total"] or 0, x["price"]))
         cheapest = {}
         for x in all_items:                  # ya vienen ordenados por precio
             cheapest.setdefault(x["destination"], x)
@@ -333,7 +494,8 @@ def make_router(cached_search, require_key):
             "cheapest_by_destination": [
                 {k: x[k] for k in ("destination", "city", "country", "price", "currency",
                                    "departure_date", "return_date", "nights", "airline",
-                                   "google_flights_url")} | {"is_deal": x["price"] <= max_price}
+                                   "google_flights_url", "hotel", "trip_total")}
+                | {"is_deal": x["price"] <= max_price}
                 for x in cheapest.values()],
         }
 
@@ -345,7 +507,7 @@ def make_router(cached_search, require_key):
                 "SELECT id, origin, started_at, finished_at, status, total, done, errors, found "
                 "FROM scans ORDER BY id DESC LIMIT ?", (limit,))]
         running = _current["scan"]
-        return {"enabled": ENABLED, "schedule": TIMES,
+        return {"enabled": ENABLED, "schedule": TIMES, "hotels_running": _current["hotels"],
                 "running": ({k: running[k] for k in ("id", "started_at", "total", "done",
                                                      "errors", "found")} if running else None),
                 "recent": recent}

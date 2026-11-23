@@ -25,7 +25,7 @@ RUN if [ "$INSTALL_PLAYWRIGHT" = "true" ]; then \
         playwright install --with-deps chromium && rm -rf /var/lib/apt/lists/*; \
     fi
 
-COPY flight_tracker.py api.py deals.py precompute.py ./
+COPY flight_tracker.py api.py deals.py precompute.py hotels.py ./
 
 VOLUME ["/data"]
 EXPOSE 8000
