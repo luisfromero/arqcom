@@ -62,3 +62,9 @@
 2025-11-05 18:27:58,491 INFO spawned: 'nginx' with pid 8
 2025-11-05 18:27:59,531 INFO success: php-fpm entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
 2025-11-05 18:27:59,532 INFO success: nginx entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+2026-11-16 09:02:21,128 INFO Set uid to user 0 succeeded
+2026-11-16 09:02:21,131 INFO supervisord started with pid 1
+2026-11-16 09:02:22,134 INFO spawned: 'php-fpm' with pid 7
+2026-11-16 09:02:22,135 INFO spawned: 'nginx' with pid 8
+2026-11-16 09:02:23,153 INFO success: php-fpm entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+2026-11-16 09:02:23,153 INFO success: nginx entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)

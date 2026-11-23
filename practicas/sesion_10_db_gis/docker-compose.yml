@@ -32,6 +32,25 @@ services:
     ports:
       - "8090:3306" # Puerto de la base de datos expuesto en el host
 
+
+  # 3. Contenedor de Base de Datos (MySQL) - Segunda instancia
+  dbnarjis:
+    image: mysql:8.0
+    container_name: mi_segunda_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: narjisdb
+      MYSQL_USER: narjis
+      MYSQL_PASSWORD: ${NARJIS_DB_PASSWORD}            # en .env (no se sube a git)
+      MYSQL_ROOT_PASSWORD: ${NARJIS_DB_ROOT_PASSWORD}
+    volumes:
+      - db_data2:/var/lib/mysql
+    networks:
+      - mi_red
+    ports:
+      - "8091:3306" # Puerto de la base de datos expuesto en el host
+
+
   # 3. Contenedor de phpMyAdmin
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
@@ -53,3 +72,4 @@ networks:
 
 volumes:
   db_data: # Volumen para que los datos de MySQL no se pierdan
+  db_data2: # Volumen para la segunda instancia de MySQL
