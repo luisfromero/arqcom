@@ -1,0 +1,110 @@
+{
+  "name": "Vuelos y hoteles (página web)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "hoteles",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b345c539-d3cc-46bc-a7b3-93dc552de24b",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -944,
+        160
+      ],
+      "webhookId": "5d1b7a52-8f0e-4a8e-9c1e-0a1b2c3d4e01"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ---- Configuración: dónde está la API de vuelos ----\n// n8n en Docker (Docker Desktop): host.docker.internal\n// n8n en la misma red de Docker que la API: http://flight-tracker:8000\n// n8n instalado directamente en el PC: http://localhost:8000\nconst API = 'http://host.docker.internal:8000';\nconst API_KEY = 'TU_API_KEY';\n\n// ---- Parámetros de la URL: /webhook/hoteles?max_price=80&weekdays=4,5&destinations=LON,ROM ----\nconst q = $input.first().json.query || {};\nconst has = (v) => v !== undefined && v !== null && String(v).trim() !== '';\nconst num = (v, def) => (has(v) && !isNaN(Number(v)) ? Number(v) : def);\n\nconst opts = {\n  max_price: num(q.max_price, 100),\n  weekdays: has(q.weekdays) ? String(q.weekdays).replace(/\\s/g, '') : null,\n  min_nights: num(q.min_nights, null),\n  max_nights: num(q.max_nights, null),\n  date_from: has(q.date_from) ? String(q.date_from) : null,\n  date_to: has(q.date_to) ? String(q.date_to) : null,\n  destinations: has(q.destinations) ? String(q.destinations).toUpperCase().replace(/\\s/g, '') : null,\n  max_total: num(q.max_total, null),\n  sort: q.sort === 'price' ? 'price' : 'total',      // total = vuelo + alojamiento\n  include_hostels: q.hostels !== '0',               // ?hostels=0 quita los albergues\n  min_rating: num(q.min_rating, 3.5),\n  limit: Math.min(num(q.limit, 20), 50),            // ofertas que se muestran\n  per_deal: Math.min(num(q.per_deal, 3), 10),       // alojamientos por oferta\n};\n\nif (opts.min_nights !== null && opts.max_nights !== null && opts.min_nights > opts.max_nights) {\n  [opts.min_nights, opts.max_nights] = [opts.max_nights, opts.min_nights];\n}\n\n// Llamada a la API sin lanzar excepción en 4xx/5xx (así se puede mostrar el error)\nconst get = async (path, qs) => {\n  const res = await this.helpers.httpRequest({\n    method: 'GET', url: API + path, qs, headers: { 'X-API-Key': API_KEY },\n    json: true, timeout: 30000, returnFullResponse: true, ignoreHttpStatusErrors: true,\n  });\n  return { status: res.statusCode, body: res.body };\n};\n\n// 1) Ofertas de la búsqueda más reciente (precálculo en la base de datos)\nconst qs = { max_price: opts.max_price, sort: opts.sort, include_hostels: opts.include_hostels,\n             hotel_min_rating: opts.min_rating, limit: opts.limit };\nfor (const k of ['weekdays', 'min_nights', 'max_nights', 'date_from', 'date_to', 'destinations', 'max_total']) {\n  if (opts[k] !== null) qs[k] = opts[k];\n}\nconst latest = await get('/api/deals/latest', qs);\nif (latest.status !== 200) {\n  return [{ json: { form: q, opts, error: { status: latest.status, detail: latest.body && latest.body.detail } } }];\n}\n\n// 2) Alojamientos de cada oferta (de lo guardado; se omiten las que aún no tienen búsqueda\n//    de alojamiento para no esperar a una búsqueda en vivo)\nconst deals = latest.body.deals || [];\nconst hotels = await Promise.all(deals.map(async (x) => {\n  if (!x.hotels_checked) return null;\n  const r = await get('/api/hotels', {\n    destination: x.destination, checkin: x.departure_date, checkout: x.return_date,\n    limit: opts.per_deal, min_rating: opts.min_rating, include_hostels: opts.include_hostels,\n  });\n  return r.status === 200 ? r.body : null;\n}));\ndeals.forEach((x, i) => { x.hotels = hotels[i] ? hotels[i].hotels : null; x.hotels_found = hotels[i] ? hotels[i].count : 0; });\n\nreturn [{ json: { form: q, opts, latest: latest.body } }];\n"
+      },
+      "id": "4167b7b4-471a-462e-8c77-e370d73958dd",
+      "name": "Consultar API",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -736,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst form = d.form || {};\nconst o = d.opts || {};\nconst esc = (s) => String(s ?? '').replace(/[&<>\"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' }[c]));\nconst DIAS = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];\nconst fecha = (iso) => { const t = new Date(iso + 'T12:00:00'); return `${DIAS[(t.getDay() + 6) % 7]} ${t.getDate()}/${t.getMonth() + 1}`; };\nconst hora = (s) => esc(String(s || '').split(' on ')[0]);\nconst eur = (n) => (n == null ? '—' : `${Math.round(n)} €`);\nconst ago = (m) => (m == null ? '—' : m < 60 ? `hace ${m} min` : m < 2880 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} días`);\n\nconst css = `\n:root{--bg:#f6f7f9;--card:#fff;--text:#1d2330;--muted:#6b7280;--line:#e5e7eb;--accent:#0b63ce;--good:#0f7b3f;--chip:#eef2f7;--warn:#a15c00}\n@media (prefers-color-scheme:dark){:root{--bg:#111418;--card:#1a1f26;--text:#e7eaee;--muted:#9aa3ae;--line:#2a313a;--accent:#5aa2ff;--good:#4cc38a;--chip:#232a33;--warn:#f0b35a}}\n*{box-sizing:border-box}body{margin:0;font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}\nmain{max-width:980px;margin:0 auto;padding:20px 16px 40px}h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:28px 0 10px}\n.sub{color:var(--muted);margin:0 0 16px}.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}\nform{display:flex;flex-wrap:wrap;gap:10px;align-items:end}label{display:flex;flex-direction:column;font-size:12px;color:var(--muted);gap:3px}\ninput,select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--text);width:120px}\nbutton{font:inherit;padding:7px 14px;border:0;border-radius:6px;background:var(--accent);color:#fff;cursor:pointer}\n.stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.stat{flex:1 1 140px}.stat b{display:block;font-size:22px}.stat span{color:var(--muted);font-size:12px}\na{color:var(--accent)}.muted{color:var(--muted)}.err{border-color:#d33;color:#d33}.warn{border-color:var(--warn);color:var(--warn);margin-top:14px}\n.deal{margin-bottom:12px}.head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline}\n.city{font-size:17px;font-weight:700}.total{font-size:22px;font-weight:800;color:var(--good);font-variant-numeric:tabular-nums}\n.flight{margin:6px 0 10px;color:var(--muted);font-size:14px}.flight b{color:var(--text)}\n.tw{overflow-x:auto}table{width:100%;border-collapse:collapse}th,td{padding:6px 8px;border-top:1px solid var(--line);text-align:left;white-space:nowrap}\nth{font-size:12px;color:var(--muted);font-weight:600}td.p{font-weight:700;font-variant-numeric:tabular-nums}\n.tag{background:var(--chip);border-radius:999px;padding:1px 8px;font-size:12px;margin-left:6px}.down{color:var(--good);font-size:13px;margin-left:6px}`;\n\nconst f = (name, label, ph) => `<label>${label}<input name=\"${name}\" value=\"${esc(form[name])}\" placeholder=\"${ph}\"></label>`;\nconst sel = (name, label, options) => `<label>${label}<select name=\"${name}\">${options.map(([v, t]) =>\n  `<option value=\"${v}\"${String(form[name] ?? options[0][0]) === v ? ' selected' : ''}>${t}</option>`).join('')}</select></label>`;\nconst formHtml = `<div class=\"card\"><form method=\"get\">\n${f('max_price', 'Vuelo máx. (€)', '100')}${f('max_total', 'Vuelo + aloj. máx.', 'sin límite')}\n${f('weekdays', 'Días salida (0=lun…6=dom)', 'jue-sáb')}${f('min_nights', 'Noches mín.', '2')}${f('max_nights', 'Noches máx.', '4')}\n${f('date_from', 'Desde (AAAA-MM-DD)', 'hoy')}${f('date_to', 'Hasta', '+8 semanas')}${f('destinations', 'Destinos (LON,ROM…)', 'todas')}\n${f('min_rating', 'Valoración mín.', '3.5')}\n${sel('hostels', 'Albergues', [['1', 'Incluir'], ['0', 'Excluir']])}\n${sel('sort', 'Ordenar por', [['total', 'Viaje completo'], ['price', 'Solo vuelo']])}\n<button>Buscar</button></form>\n<p class=\"muted\" style=\"margin:8px 0 0;font-size:12px\">Usa la búsqueda más reciente guardada en la base de datos: responde al instante.</p></div>`;\n\nlet content;\nif (d.error) {\n  const det = d.error.detail;\n  const msg = Array.isArray(det) ? det.map((x) => (typeof x === 'string' ? x : x.msg)).map(esc).join('<br>') : esc(det || `Error ${d.error.status}`);\n  content = `<div class=\"card err\" style=\"margin-top:14px\"><b>La API devolvió un error (${esc(d.error.status)})</b><br>${msg}</div>`;\n} else {\n  const L = d.latest;\n  const deals = L.deals || [];\n  const withHotel = deals.filter((x) => x.trip_total != null);\n  const best = withHotel.reduce((a, x) => (!a || x.trip_total < a.trip_total ? x : a), null);\n\n  const hotelRows = (x) => {\n    if (!x.hotels_checked) {\n      return `<p class=\"muted\" style=\"margin:0\">Alojamiento aún no buscado para esta oferta · <a href=\"${esc(x.google_hotels_url)}\" target=\"_blank\" rel=\"noopener\">Buscar en Google Hotels</a></p>`;\n    }\n    if (!x.hotels || !x.hotels.length) {\n      return `<p class=\"muted\" style=\"margin:0\">Ningún alojamiento cumple los filtros · <a href=\"${esc(x.google_hotels_url)}\" target=\"_blank\" rel=\"noopener\">Ver todos en Google Hotels</a></p>`;\n    }\n    const rows = x.hotels.map((h) => `<tr><td><a href=\"${esc(h.url || x.google_hotels_url)}\" target=\"_blank\" rel=\"noopener\">${esc(h.name)}</a>${h.hostel ? '<span class=\"tag\">albergue</span>' : ''}${h.stars ? `<span class=\"tag\">${h.stars}★</span>` : ''}</td>\n<td class=\"p\">${eur(h.price_total)}</td><td>${eur(h.price_night)}/noche</td><td>${h.rating ?? '—'} ★ <span class=\"muted\">(${h.reviews ?? 0})</span></td>\n<td class=\"p\">${eur(x.price + h.price_total)}</td></tr>`).join('');\n    const more = x.hotels_found > x.hotels.length\n      ? `<p class=\"muted\" style=\"margin:6px 0 0;font-size:13px\">${x.hotels_found - x.hotels.length} más · <a href=\"${esc(x.google_hotels_url)}\" target=\"_blank\" rel=\"noopener\">ver en Google Hotels</a></p>` : '';\n    return `<div class=\"tw\"><table><thead><tr><th>Alojamiento</th><th>Total</th><th>Por noche</th><th>Valoración</th><th>Vuelo + aloj.</th></tr></thead><tbody>${rows}</tbody></table></div>${more}`;\n  };\n\n  const cards = deals.map((x) => `<div class=\"card deal\">\n<div class=\"head\"><div><span class=\"city\">${esc(x.city)}</span> <span class=\"muted\">${esc(x.country)} · ${esc(x.destination)}</span></div>\n<div class=\"total\">${x.trip_total != null ? eur(x.trip_total) : eur(x.price)}<span class=\"muted\" style=\"font-size:12px;font-weight:400\"> ${x.trip_total != null ? 'vuelo + aloj.' : 'solo vuelo'}</span></div></div>\n<div class=\"flight\">✈️ <b>${fecha(x.departure_date)} → ${fecha(x.return_date)}</b> · ${x.nights} noches · <b>${eur(x.price)}</b>${x.price_change < 0 ? `<span class=\"down\">↓ ${Math.round(-x.price_change)} €</span>` : ''}\n· ${esc(x.airline)} · ${hora(x.departure)}–${hora(x.arrival)} · ${esc(x.duration)} · ${esc(x.stops_text)}\n· <a href=\"${esc(x.google_flights_url)}\" target=\"_blank\" rel=\"noopener\">Ver vuelo</a></div>\n${hotelRows(x)}</div>`).join('');\n\n  content = `\n${L.coverage_ok ? '' : `<div class=\"card warn\"><b>Fuera de lo precalculado:</b> ${esc((L.coverage_notes || []).join(' · '))}</div>`}\n<div class=\"stats\">\n<div class=\"card stat\"><b>${L.deals_count}</b><span>vuelos ≤ ${eur(o.max_price)}${o.max_total ? ` y viaje ≤ ${eur(o.max_total)}` : ''}</span></div>\n<div class=\"card stat\"><b>${best ? eur(best.trip_total) : '—'}</b><span>${best ? `viaje más barato: ${esc(best.city)}, ${fecha(best.departure_date)}` : 'sin alojamiento todavía'}</span></div>\n<div class=\"card stat\"><b>${ago(L.age_minutes)}</b><span>búsqueda más reciente${L.scan_running ? ' (hay otra en curso)' : ''}</span></div>\n</div>\n<h2>Vuelos y alojamiento ${o.sort === 'price' ? '(por precio del vuelo)' : '(por precio del viaje completo)'}</h2>\n${cards || `<div class=\"card\">No hay vuelos por debajo de ${eur(o.max_price)} con estos filtros.</div>`}\n${L.deals_count > deals.length ? `<p class=\"muted\">Se muestran ${deals.length} de ${L.deals_count}. Añade <code>?limit=50</code> a la URL para ver más.</p>` : ''}`;\n}\n\nconst c = d.latest && d.latest.coverage;\nconst sub = c ? `Desde ${esc(c.origin)} · salidas del ${fecha(c.date_from)} al ${fecha(c.date_to)} · ${c.min_nights}-${c.max_nights} noches · ${c.weekdays.map((n) => DIAS[n]).join(', ')}`\n  : 'Ida y vuelta a capitales europeas con alojamiento';\n\nconst html = `<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<title>Vuelos y hoteles</title><style>${css}</style></head><body><main>\n<h1>✈️🏨 Vuelos y hoteles</h1><p class=\"sub\">${sub}</p>${formHtml}${content}\n<p class=\"muted\" style=\"margin-top:24px;font-size:12px\">Precios por persona: vuelo ida y vuelta (Google Flights) y alojamiento total de todas las noches con impuestos (Google Hotels) · ${new Date().toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}</p>\n</main></body></html>`;\n\nreturn [{ json: { html } }];\n"
+      },
+      "id": "7442bd60-b894-4ae5-a252-7a43edb0ab96",
+      "name": "Generar página HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.html }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "158d4529-441d-42a0-b41a-30a29e47d0de",
+      "name": "Responder con la página",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -272,
+        160
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Consultar API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar API": {
+      "main": [
+        [
+          {
+            "node": "Generar página HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar página HTML": {
+      "main": [
+        [
+          {
+            "node": "Responder con la página",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
